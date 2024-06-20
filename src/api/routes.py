@@ -7,8 +7,9 @@ from api.utils import generate_sitemap, APIException
 from flask_cors import CORS # type: ignore
 
 from flask_jwt_extended import create_access_token # type: ignore
-from flask_jwt_extended import get_jwt_identity # type: ignore
-from flask_jwt_extended import jwt_required # type: ignore
+from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import jwt_required
+from werkzeug.security import generate_password_hash, check_password_hash   # type: ignore
 
 api = Blueprint('api', __name__)
 
@@ -25,7 +26,7 @@ def generate_token():
 
     if user is None:
         response = {
-            "msg": "User or Password does not match."
+            "msg": "Email or Password does not match."
         }
         return jsonify(response), 401
     
@@ -55,24 +56,23 @@ def register_user():
     
     user = User()
     user.email = email
-    user.password = password
+    user.password = generate_password_hash(password)
     user.is_active = True
-
     db.session.add(user)
     db.session.commit()
 
     response = {
-       'msg': f'Congratulations {user.email}. YOu have sussefully signed up!'
+       'msg': f'Congratulations {user.email}. You have sussefully signed up!'
     }
     return jsonify(response), 200
 
 
-
-
-
-
-    @api.route('/invoices', methods=['GET'])
-    def get_invoice():
-       pass
-
-    
+@api.route('/invoices', methods=['GET'])
+@jwt_required()
+def get_invoice():
+    user_id = get_jwt_identity()
+    invoices = Invoice.query.filter_by(user_id=user_id).all()
+    return jsonify({
+        "invoices": [invoice.serialize() for invoice in invoices],
+        "msg": "Invoices retrieved successfully"
+    }), 200
